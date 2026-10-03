@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>设计书</title><style>
+:root{--bg:#0b0f14;--panel:#121821;--line:#233040;--txt:#cad7e3;--dim:#7b8ea1;--hot:#ff7a4d;--ok:#5ee08a;--qi:#4fd8ff}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);font:15px/1.75 "Segoe UI","Microsoft YaHei",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{max-width:920px;margin:0 auto;padding:52px 26px 90px}
+h1{font-size:30px;margin:0 0 6px;color:#fff;letter-spacing:.01em}
+h2{font-size:21px;margin:44px 0 14px;color:#fff;padding-bottom:9px;border-bottom:1px solid var(--line)}
+h3{font-size:17px;margin:30px 0 10px;color:#e8f0f8}
+h4{font-size:15px;margin:22px 0 8px;color:var(--dim)}
+p{margin:11px 0}
+a{color:var(--qi);text-decoration:none} a:hover{text-decoration:underline}
+code{background:#1b2532;border:1px solid var(--line);border-radius:4px;padding:1px 6px;font:13px/1.5 Consolas,monospace;color:#bfeaff}
+pre{background:#0d131b;border:1px solid var(--line);border-radius:8px;padding:15px 17px;overflow-x:auto;font:13px/1.65 Consolas,monospace;color:#a9c3d6}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:14px}
+th,td{border:1px solid var(--line);padding:8px 11px;text-align:left;vertical-align:top}
+th{background:#182231;color:#fff;font-weight:600}
+tr:nth-child(even) td{background:#0f151d}
+hr{border:0;border-top:1px solid var(--line);margin:38px 0}
+ul{margin:11px 0;padding-left:24px} li{margin:5px 0}
+blockquote{margin:16px 0;padding:11px 18px;border-left:3px solid var(--hot);background:#141b24;color:#dbe6f0;border-radius:0 6px 6px 0}
+.hero{background:linear-gradient(135deg,#101823,#0b0f14);border:1px solid var(--line);border-radius:12px;padding:26px 28px;margin:26px 0 34px}
+.hero p{margin:8px 0;color:#dbe6f0}
+.cta{display:inline-block;background:var(--hot);color:#fff;font-weight:600;padding:12px 26px;border-radius:8px;margin:14px 12px 4px 0}
+.cta:hover{text-decoration:none;filter:brightness(1.12)}
+.cta.alt{background:#1d2a38;border:1px solid var(--line);color:#cfe0ee}
+nav{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 30px}
+nav a{background:#161f2a;border:1px solid var(--line);border-radius:7px;padding:8px 15px;font-size:14px;color:#cfe0ee}
+nav a:hover{background:#1e2a38;text-decoration:none}
+img{max-width:100%;border-radius:9px;border:1px solid var(--line);margin:14px 0;display:block}
+.small{color:var(--dim);font-size:13.5px}
+.tag{display:inline-block;background:#182231;border:1px solid var(--line);border-radius:20px;padding:3px 13px;font-size:13px;color:var(--dim);margin:0 7px 7px 0}
+</style></head>
+<body><div class="wrap"><nav><a href="index.html">← 返回入口</a><a href="体验-战斗系统.html">▶ 直接体验</a></nav><h1>《御剑》剑修战斗系统 · 设计书</h1>
+<blockquote>3D 第三人称 · 用剑者单体战斗系统 · 写实为骨、奇幻为皮</blockquote>
+<blockquote>数据源：<code>Data/anatomy.json</code>（人体） · <code>Data/moveset.json</code>（招式）</blockquote>
+<blockquote>验证：<code>node Tools/audit.mjs</code>（离线，不需要 Unity、不需要浏览器）</blockquote>
+<blockquote></blockquote>
+<blockquote><strong>本文件里的每个数字都来自数据文件，不是文档另写一套。</strong> 改数据必须重跑审计。</blockquote>
+<hr>
+<h2>一、这套系统要解决什么问题</h2>
+<p>用剑的人的战斗系统，难的不是"能打出几段连招"，而是三件常被跳过的事：</p>
+<table><thead><tr><th>问题</th><th>常见做法</th><th>本系统的做法</th></tr></thead><tbody>
+<tr><td><strong>动作像不像人</strong></td><td>靠美术手 K，靠人眼审</td><td>把关节活动度写成数据，逐帧跑断言。<strong>"符合人体动作学"是一条能红的命令，不是一个形容词</strong></td></tr>
+<tr><td><strong>连招顺不顺</strong></td><td>每段收招再起手</td><td>三段走同一条 8 字发力链，<strong>第一段的收势就是第二段的起手</strong>，中间不做完整收招</td></tr>
+<tr><td><strong>技能和华丽的动作怎么接</strong></td><td>技能是另一套东西</td><td><strong>第三段上撩的收势本身就是起飞的引信</strong>：髋膝踝蹬直把人送离地面 12cm，御剑起飞从这一帧直接开始，中间不需要过渡帧</td></tr>
+</tbody></table>
+<p>一句话：<strong>机制要长在动作上，而不是贴在动作外面。</strong></p>
+<hr>
+<h2>二、战斗循环</h2>
+<pre>
+        地面态                                御剑态
+   ┌──────────────┐                    ┌──────────────────┐
+   │ a1 斜斩      │  +25 剑意          │ 巡航 / 悬停       │
+   │   ↓ 取消窗口 │                    │   ↓              │
+   │ a2 反撩      │  +25 剑意          │ pierce  御剑穿身  │
+   │   ↓ 取消窗口 │                    │ qi_swords 剑气凝剑│
+   │ a3 上撩      │  +50 剑意 ────────▶│ great_cleave 巨剑 │
+   └──────────────┘   满 100 才能起飞  │ execution 斩杀    │
+                                      └──────────────────┘
+</pre>
+<p><strong>剑意（0~100）是唯一的资源轴，而且它只在"打中"的时候长。</strong></p>
+<ul>
+<li>a1 / a2 / a3 命中各 +25 / +25 / +50 → <strong>一套完整的三连击正好 100</strong></li>
+<li>这是刻意的：需求是"连击三次后能御剑起飞"，那么资源曲线就应该让"打完三段"和"攒满"是同一件事</li>
+<li>剑意不满时按键 → 要给<strong>拒绝反馈</strong>（音画提示），不许静默失败。静默失败是"玩家以为游戏坏了"的头号来源</li>
+</ul>
+<hr>
+<h2>三、地面三连击（写实段）</h2>
+<p>三段的动作全部来自真实剑术的连续斩逻辑：<strong>斜斩 → 反撩 → 上撩</strong>，走一条 8 字。</p>
+<p>为什么是这条链而不是"砍三下"：</p>
+<ul>
+<li>第一段结束后剑停在左下，而这个位置<strong>本来就是第二段反手斩的起手</strong>。真实剑术的连续斩不需要把剑拉回起点</li>
+<li>第二段结束后剑停在右上，而这正是第三段上撩最省力的起点</li>
+<li>因此三段的<strong>躯干旋转方向和幅度</strong>是交替的：右旋 47°（储备）→ 反拧到左旋 28°（释放）→ 再回右旋 → 再反拧。这就是发力链，不是三段孤立动画</li>
+</ul>
+<h3>帧数据（60fps）</h3>
+<table><thead><tr><th>招式</th><th>总帧</th><th>起手</th><th>斩击</th><th>命中判定</th><th>收势</th><th>取消窗口</th><th>位移</th></tr></thead><tbody>
+<tr><td><code>a1</code> 斜斩·右袈裟</td><td>26</td><td>0–10</td><td>10–17</td><td><strong>17–19</strong></td><td>19–26</td><td>18–26</td><td>由躯干反拧带动</td></tr>
+<tr><td><code>a2</code> 反撩·左逆袈裟</td><td>20</td><td>0–4</td><td>4–9</td><td><strong>9–11</strong></td><td>11–20</td><td>12–20</td><td>重心前后往复</td></tr>
+<tr><td><code>a3</code> 上撩·起势</td><td>30</td><td>0–7</td><td>7–13</td><td><strong>13–16</strong></td><td>16–30</td><td>18–30</td><td>蹬直离地 12cm</td></tr>
+</tbody></table>
+<p><strong>起手为什么要 10 帧（167ms）</strong>：人类视觉反应时间约 200~250ms。第一段是从中立状态发起的，对手必须能读懂；而 a2/a3 是从上一段的收势直接续上，起手可以短。</p>
+<blockquote>⚠️ 这条是可读性设计，不是我编的帧数——它来自"攻击需要有可归因的预告窗口，否则玩家会把失败归咎于游戏"这一设计原则。</blockquote>
+<h3>动作解剖学依据（每段的三处关键）</h3>
+<p><strong>a1 斜斩</strong></p>
+<ul>
+<li>起手把躯干右旋到 47°（骨盆 20 + 腰椎 10 + 下胸 9 + 上胸 8），重心后压到右腿（右膝屈 34°）</li>
+<li>斩击由<strong>躯干反拧</strong>驱动到左旋 28°，躯干前屈 36°，重心压到前腿</li>
+<li>手臂只是传导。<strong>只动手臂的斩击在画面上就是"挥拍子"，不是挥剑</strong></li>
+</ul>
+<p><strong>a2 反撩</strong></p>
+<ul>
+<li>起手几乎是 a1 的收势本身（差异只有 4° 级别的躯干角），剑沉到左下外侧</li>
+<li>收势躯干重新右旋 37°，身体由前屈转为后仰</li>
+</ul>
+<p><strong>a3 上撩</strong></p>
+<ul>
+<li>刻意先往下沉（起手剑到右下）——上撩的全部力量来自这一沉</li>
+<li>收势是全套里唯一的<strong>全身伸展</strong>：髋膝踝同时蹬直（踝跖屈 24°）、躯干后仰 22°、肩胛上回旋 24°</li>
+</ul>
+<hr>
+<h2>四、御剑（形态切换 + 位移 + 穿透）</h2>
+<h3>4.1 起飞 <code>takeoff</code>（72 帧 / 1.2s，<strong>不可打断</strong>）</h3>
+<p>四拍：<strong>放剑（0–10）→ 剑翻转（10–26）→ 踏上（26–44）→ 拔升（44–72）</strong></p>
+<ul>
+<li>剑从手里脱手，在空中翻 90° 落到脚下，人踩上去</li>
+<li><strong>这一段切换过程本身也在动</strong>：整段位移 +1.4m 高、+0.7m 前。比"原地换形态"好得多，而且翻转本身就是最好的状态切换提示</li>
+<li>数据层面这是 <code>pose.sword.detached = true</code>：剑不再是"握在手里的武器"，而是写在根空间里的载具。<strong>没有这个开关，御剑根本没法用同一套姿势数据描述</strong></li>
+</ul>
+<h3>4.2 巡航与悬停</h3>
+<ul>
+<li><strong>高速巡航用水平踏剑</strong>（<code>ride_cruise</code>）：剑身与地面基本平行，冲浪站姿，一手后摆配重</li>
+<li><strong>低速悬停用斜插</strong>（<code>ride_hover</code>）：剑斜指向下，身体直立</li>
+<li>速度感必须<strong>五项叠加</strong>，缺一项就"飘"：FOV 变化 + 高对比地面纹理流动 + <strong>剑上的留光（拖尾挂在剑上，不是挂在人身上）</strong> + 气流 + 相机滞后</li>
+</ul>
+<h3>4.3 御剑穿身 <code>pierce</code>（21 帧 / 0.35s）</h3>
+<ul>
+<li><strong>射姿</strong>：身体与地面接近水平（根俯仰 78°）、双臂前伸夹紧、双腿后掠。</li>
+</ul>
+<p>  长距穿刺必须用一条水平的身体表达"我是一条线"——站姿高速冲刺看起来像被拖着走</p>
+<ul>
+<li>判定：<strong>多段球扫掠 + 按敌人 ID 去重</strong>（每个敌人每次冲刺只吃一次）。</li>
+</ul>
+<p>  <strong>绝不用逐帧 capsule 检测</strong> —— 高速下必然穿帧漏判</p>
+<ul>
+<li>霸体与无敌分开：<strong>前段霸体（0–8 帧）、后段无敌（8–21 帧）</strong>。</li>
+</ul>
+<p>  无敌必须延续到<strong>穿出敌人之后 2~3 帧</strong>；如果恰好在"离开碰撞体"那一帧结束，就会出现"出敌人的瞬间被打"的经典体感事故</p>
+<hr>
+<h2>五、剑气凝剑 <code>qi_swords</code>（60 帧）</h2>
+<table><thead><tr><th>参数</th><th>值</th><th>为什么</th></tr></thead><tbody>
+<tr><td>剑数</td><td><strong>6</strong></td><td>3/6/9/12 是可数区间。超过约 20 把，个体就不可读，只能靠整体形状传达信息</td></tr>
+<tr><td>第一把提前</td><td><strong>12 帧</strong></td><td><strong>用单体预告群体</strong> —— 玩家的视线会跟着第一把剑走。没有这 12 帧，玩家不知道该看哪</td></tr>
+<tr><td>发射间隔</td><td><strong>3 帧（0.05s）</strong></td><td>依序发射比齐射可读性高一个量级，因为它给了玩家一个节拍器。间隔 &lt;0.03s 会被人耳眼合并成"一下"</td></tr>
+<tr><td>排列</td><td><strong>扇形朝前</strong></td><td>排列形状本身就是玩法信息：环绕=防御/领域，扇形=有方向，螺旋=包围，纵列=穿刺</td></tr>
+<tr><td>伤害形态</td><td><strong>分段多次命中</strong></td><td>每次独立命中都能触发顿帧、音效、伤害数字——这些反馈本身就是可读性。DOT 只在领域型剑阵里合适</td></tr>
+</tbody></table>
+<hr>
+<h2>六、巨剑竖劈 <code>great_cleave</code>（96 帧 / 1.6s）</h2>
+<p>五拍：<strong>指天（0–18）→ 天象（18–48）→ 下落（48–60）→ 命中（60–66）→ 余韵（66–96）</strong></p>
+<ul>
+<li><strong>玩家技能用"锁定目标当前位置"，不用区域预警</strong>。玩家付出的是 CD 与蓄力时间，不是躲闪技术；打空会带来强烈挫败</li>
+<li>但给 <code>telegraphFrames = 36</code> 的落点预警圈（半径 3.2m）—— 玩家能看出"它锁的是我刚才站的地方"，于是学会了"起手就走"。这比纯必中更有趣</li>
+<li><strong>下落轨迹本身就是预告</strong>：天象拍不是装饰，是本技能最重要的可读性来源</li>
+<li>命中必须<strong>拉远镜头</strong>并留下地裂，否则会失去尺度感（这是巨剑演出最典型的坑：剑变大了，但摄像机和地面参照物没跟着变）</li>
+</ul>
+<hr>
+<h2>七、斩杀 · 撕裂黑暗 <code>execution</code>（120 帧 / 2s）</h2>
+<p>需求原话：<strong>双手竖握手中剑，画面全黑，由一点变成一竖将黑暗撕开，角色穿到以敌人为圆心的直径对面。</strong></p>
+<h3>八拍实现表</h3>
+<table><thead><tr><th>拍</th><th>帧</th><th>内容</th><th>关键点</th></tr></thead><tbody>
+<tr><td>1</td><td>0–4</td><td>触发定格，剑与敌人接触点起光</td><td>确认"打中了"</td></tr>
+<tr><td>2</td><td>4–10</td><td><strong>压黑 + 静音</strong></td><td><strong>必须先压暗 4 帧</strong>。直接切全黑会被读成加载/掉帧 bug</td></tr>
+<tr><td>3</td><td>10–22</td><td><strong>由一点变成一竖</strong></td><td>竖直光缝从 1.5px 的点长成贯穿画面</td></tr>
+<tr><td>4</td><td>22–26</td><td><strong>撕裂</strong></td><td>横向扩张成全屏；最后一帧插 <strong>1 帧反色</strong></td></tr>
+<tr><td>5</td><td>26–28</td><td><strong>换位</strong></td><td>沿"以敌人为圆心"的直径穿到对面</td></tr>
+<tr><td>6</td><td>28–46</td><td><strong>敌人反应延迟</strong></td><td>敌人保持姿势 6~12 帧后才倒下</td></tr>
+<tr><td>7</td><td>46–96</td><td>收招</td><td>角色背对镜头，不回头、不解释</td></tr>
+<tr><td>8</td><td>96–120</td><td>回亮 + 金属尾音</td><td>收尾</td></tr>
+</tbody></table>
+<h3>四个决定成败的细节</h3>
+<p><strong>① 第 3 拍：为什么是"由一点变成一竖"</strong></p>
+<p>一个"点"先于人眼识别出一个"形状"之前就出现，所以观众的第一反应是"有光"；光长成线，第二反应才是"被切开了"。<strong>由点到线是让观众参与生成那条切割线</strong>——比自己直接看到一条线更有力。</p>
+<p>技术要点（三件缺一不可）：</p>
+<ul>
+<li>光缝必须<strong>边缘锐利、中心过曝</strong>。锐利边缘读作"切口"，柔和辉光读作"光柱"，语义完全不同</li>
+<li>在 bloom 之上叠<strong>各向异性竖直拉伸</strong>（横向 sigma ≪ 纵向）。只用圆形 bloom 会变成光球，语义是"发光"而不是"切开"</li>
+<li><strong>扩张必须加速</strong>：1~2px 停留 2~3 帧 → 猛地展开。线性扩张读起来像"光在变粗"，加速的扩张读起来像"裂开了"</li>
+</ul>
+<p><strong>② 第 4 拍：为什么用反色而不是纯白</strong></p>
+<p>白闪适合"物理冲击"；<strong>负片（反色）适合"空间被切开"</strong>——因为反色是"世界的颜色规则被违反了"，语义上比过曝更"非人"。</p>
+<p><strong>③ 第 5 拍：换位用瞬移，不用残影</strong></p>
+<p>残影读作"跑过去"，会破坏"穿过去"的语义。位移距离 = 2×敌人半径 + 2×自身半径 + 0.2m 余量，保证换位后碰撞体不重叠——否则物理系统会立刻把两人推开，那一推会毁掉整段演出。</p>
+<p><strong>相机不该瞬移</strong>：以 0.3s 插值到新的身后位。相机比角色慢，是这段演出有没有电影感的分水岭。</p>
+<p><strong>④ 第 6 拍：敌人反应延迟（最重要的一拍）</strong></p>
+<p>换位演出的心理机制是<strong>先给结果，再让观众自己补原因</strong>。玩家看到的是"我已经在敌人背后了"，然后敌人<strong>过了几帧才</strong>倒下——这几帧就是玩家的脑子在跑回放的时间。</p>
+<p><strong>如果敌人和角色同时到位、同时倒下，整段演出会变成打了个响指，冲击力全部消失。</strong></p>
+<h3>音效</h3>
+<p><code>静音（留 20~60Hz rumble，并把混响尾巴一起切掉）→ 撕裂 → 低频 boom → 金属尾音</code></p>
+<ul>
+<li>静音不等于无声：留极低频让"空间本身"消失，这才是"全黑"的听觉对应物</li>
+<li>静音段要比体感舒适值<strong>再长 1~2 帧</strong>，但<strong>不超过 0.5s</strong>（超过会被判定为卡顿）</li>
+<li>顿帧与音效起音必须锁相</li>
+</ul>
+<hr>
+<h2>八、人体动作学保障体系</h2>
+<p>这是本系统与"看起来差不多"的做法真正的分界。<strong>"符合人体动作学"被拆成了四层可执行断言。</strong></p>
+<h3>第 0 层：骨架自证（<code>audit.mjs --axes</code>）</h3>
+<p>在写任何一个姿势之前，先证明骨架本身的定义是对的：</p>
+<ul>
+<li><strong>轴向自证</strong>：给每个 dof 一个正值，打印它让末端（以及一个<strong>离轴标记点</strong>）往哪个世界方向动，再和它自称的解剖学含义比对。</li>
+</ul>
+<p>  为什么需要离轴探针：<strong>轴向自转不会移动骨骼末端</strong>，光看末端那几行（骨盆旋转、髋内外旋、前臂旋前）其实什么都没验证——而躯干旋转恰恰是挥砍发力的核心。</p>
+<p>  实测结果：<strong>全部 45 条轴向语义与声明一致</strong>。</p>
+<ul>
+<li><strong>镜像自证</strong>：给 <code>.L</code> 与 <code>.R</code> 同一组语义角度，检查 <code>.R</code> 是否是 <code>.L</code> 的几何镜像。实测 <strong>8 对骨骼误差 0.000e+0，规则 <code>(x, -y, -z)</code> 成立</strong>。</li>
+</ul>
+<p>  这条规则让左右两侧共享同一套 dof 名与同一套 ROM，姿势数据可以对称书写。</p>
+<h3>第 1 层：关节活动度（ROM）</h3>
+<p>22 根骨骼、45 个 dof，每个都有 <code>[min, max]</code>。逐帧比对<strong>实际施加的</strong>关节角（包括 IK 反解出来的手臂角）。</p>
+<h3>第 2 层：几何与耦合约束</h3>
+<p>单根骨骼合法不等于整个姿势成立。9 条耦合断言，每条都对应一个真实的解剖事实：</p>
+<table><thead><tr><th>约束</th><th>内容</th><th>为什么</th></tr></thead><tbody>
+<tr><td><code>two_hand_grip_reach</code></td><td>两腕距离 ∈ [3cm, 40cm]</td><td><strong>双手握剑是一个纯几何可达性问题</strong>。用关节角硬凑两只手碰不到同一根剑柄</td></tr>
+<tr><td><code>trunk_rotation_budget</code></td><td>骨盆+腰椎+下胸+上胸旋转合计 ≤ ±75°</td><td>分段各转一点，单看每根都合法，加起来就是"上身拧断"</td></tr>
+<tr><td><code>trunk_side_budget</code></td><td>躯干侧屈合计 ≤ ±45°</td><td>同上</td></tr>
+<tr><td><code>shoulder_impingement</code></td><td>肩外展 &gt;90° 时必须有外旋 ≥0</td><td>大结节会撞肩峰，真实人体靠外旋绕开骨性结构</td></tr>
+<tr><td><code>scapular_rhythm</code></td><td>肩外展 &gt;90° 时肩胛上提 ≥8°</td><td>锁骨纹丝不动而上臂硬抬，是最容易被一眼看出的假动作</td></tr>
+<tr><td><code>knee_tibial_rotation_gate</code></td><td>膝屈 &lt;20° 时胫骨自转 ≤6°</td><td>伸直 + 大自转＝十字韧带损伤的姿势</td></tr>
+</tbody></table>
+<h3>第 3 层：动力学（流畅性）</h3>
+<p>单帧合法抓不到卡顿与抽搐，所以还有：</p>
+<ul>
+<li>角速度 / 角加速度</li>
+<li><strong>剑尖速度与轨迹总长</strong>（剑尖峰值速度上限 45 m/s；实测研究里优秀剑手的剑尖在 20~30 m/s 量级）</li>
+<li>支撑相足部滑步</li>
+<li>IK 可达性（手伸到身体够不着的地方要报出来）</li>
+</ul>
+<blockquote><strong>角速度必须用四元数真实夹角算</strong>，不能用欧拉分量之差。欧拉分解在 ±90° 奇异点会翻分支（+90 跳到 −90），差值 180° 会被误读成 10800°/s 的假速度尖峰。这一条踩过。</blockquote>
+<h3>第 3.5 层：手臂为什么不用欧拉判</h3>
+<p>肩关节真正外展超过 90°（手臂举过头）时，<code>Rz·Rx·Ry</code> 的欧拉分解会在 x/y/z 之间翻分支，报出 <code>horizFlexion = ±170</code> 这种数值——<strong>那是分解的假象，不是人真的把肩膀拧了 170°</strong>。</p>
+<p>所以手臂改判三个不受参数化影响的物理量：</p>
+<p>1. <strong>可达性</strong>：目标点有没有超出臂长</p>
+<p>2. <strong>肘屈曲</strong> ∈ [−3°, 150°]（负值就是反关节）</p>
+<p>3. <strong>肩摆幅</strong> ≤ 175°</p>
+<p>手腕用 swing-twist（摆幅 ≤85°、扭转 ±25°）。</p>
+<hr>
+<h2>九、姿态系统为什么用 IK</h2>
+<p>「双手握剑」是核心约束，但<strong>两只手必须能同时够到同一根剑柄，这是一个几何可达性问题</strong>。如果姿态只用关节角来写，要让左右手在空间里正好碰到一起，是纯碰运气。</p>
+<p>所以本系统的分工是：</p>
+<table><thead><tr><th>部位</th><th>表达方式</th><th>理由</th></tr></thead><tbody>
+<tr><td>躯干 / 腿 / 头 / 肩带</td><td><strong>关节角</strong>（解剖学 dof 名）</td><td>作者想得清楚，且这些关节的活动范围本来就该硬约束</td></tr>
+<tr><td>手臂</td><td><strong>手在世界的位置</strong>（根空间）+ IK 反解</td><td>剑在哪比肩角多少度重要得多</td></tr>
+<tr><td>刀锋</td><td><strong>方向</strong>（可选）</td><td>给了它，手的朝向由刀锋反推，<strong>腕角再交给 ROM 审计</strong>。想让刀锋指向手腕到不了的方向？审计会红——这是设计意图</td></tr>
+</tbody></table>
+<p>姿态数据支持 <code>extends</code> 继承：多数字势只改几个关节，不该整段重抄。</p>
+<h3>解算器里三个必须做对的地方</h3>
+<p>1. <strong>上臂的世界旋转必须同时满足两条约束</strong>：骨长方向 → upperDir，<strong>且</strong>「前臂铰链轴」→ 弯折平面法线。</p>
+<p>   只做第一条而放任自转，肘关节会变成万向节（实测 <code>carryAngle = −115°</code>，而肘的解剖极限是 ±6°）。</p>
+<p>2. <strong>肘位要在"肩—腕轴"的整圈上搜索</strong>，代价函数同时惩罚：反关节（硬约束）、手腕过弯、偏离极向量、肘几乎伸直、以及<strong>与上一帧不连续</strong>。</p>
+<p>   搜索范围限制在极向量一侧的 ±90°——放开整圈会让相邻两帧分别选中"对面的那个极小值"，手骨帧间整转 180°。</p>
+<p>3. <strong>极向量必须先投影到垂直于肩腕轴的平面</strong>再用于比较。接近平行时投影退化成噪声，代价函数随之变成随机数，搜索逐帧乱跳分支（报表上就是 172°/帧 的整数字尖峰）。</p>
+<hr>
+<h2>十、"流畅"是怎么实现的</h2>
+<p>不是靠调缓动曲线，而是四件事：</p>
+<p>1. <strong>单调三次 Hermite 插值</strong>（Fritsch–Carlson），不是 Catmull-Rom。</p>
+<p>   Catmull-Rom 会过冲，过冲会把手脚推出 ROM 之外——而"姿势合法"是这个项目的地基，不能为了手感把它抵押掉。</p>
+<p>   也不是平滑步：平滑步在每个关键帧处速度为 0，连招会一跳一停。单调三次是 C1 连续且不过冲。</p>
+<p>2. <strong>加速斩的"快"来自关键帧的疏密</strong>，不是再叠一层时间弯曲。叠上去会双重压缩，把 5 帧的动作压进 1 帧（实测剑尖瞬间到 122 m/s＝每帧 2 米，画面上是瞬移）。</p>
+<p>3. <strong>离散状态整段切换</strong>：剑是否脱手、是否双手握，这类状态不参与插值，按"最近的关键帧"整段切换。剑从手里到脚下的过程本身就是一个事件，不是渐变。</p>
+<p>4. <strong>时间连续性</strong>：IK 逐帧求解会把上一帧的解作为 hint 传进去并施加惩罚。这不是审计器的补丁，而是解算器应有的接口——运行时同样需要。</p>
+<hr>
+<h2>十一、验证工具链（本机没有 Unity 也能全跑）</h2>
+<table><thead><tr><th>工具</th><th>作用</th><th>命令</th></tr></thead><tbody>
+<tr><td><code>Tools/audit.mjs</code></td><td>骨架自证 + 逐帧 ROM/耦合/动力学审计</td><td><code>node Tools/audit.mjs</code></td></tr>
+<tr><td><code>Tools/check-cs.mjs</code></td><td>C# 离线结构检查（本机没有编译器时的最后一道网）</td><td><code>node Tools/check-cs.mjs</code></td></tr>
+<tr><td><code>Tools/gen-cs.mjs</code></td><td>把 Data/*.json 生成成 C# 数据表</td><td><code>node Tools/gen-cs.mjs</code></td></tr>
+<tr><td><code>Tools/lib/rig.mjs</code></td><td>骨架 / FK / 两骨 IK / 姿态解算（JS 与 C# 是同一套算法）</td><td>—</td></tr>
+</tbody></table>
+<h3>⚠️ 本机环境的三个硬约束（决定了工具链长成这样）</h3>
+<p>1. <strong>Unity Editor 未安装</strong> → 无法编译、无法运行、无法截图</p>
+<p>2. <strong>dotnet SDK 未安装</strong> → 无法用 C# 编译器校验</p>
+<p>3. <strong>npm registry 与 dot.net 均不可达</strong> → 装不了 SDK，也装不了解析器</p>
+<p>所以：<strong>"符合人体动作学"这条要求，被做成了能在纯命令行里跑出红绿的东西。</strong> 这不是退而求其次，而是把一个模糊的美术要求变成了可回归的工程约束。</p>
+<hr>
+<h2>十二、当前验证状态（诚实版）</h2>
+<h3>✅ 已全绿</h3>
+<ul>
+<li><strong>骨架轴向自证</strong>：45 条 dof 的解剖学语义全部与几何实测一致</li>
+<li><strong>左右镜像自证</strong>：8 对骨骼，误差 0.000e+0，规则 <code>(x, −y, −z)</code> 成立</li>
+<li><strong>25 个姿态的 ROM + 耦合 + 手腕断言</strong>：<strong>全部通过</strong></li>
+<li><code>qi_swords</code>、<code>execution</code> 两个招式的全套断言：<strong>全绿</strong></li>
+</ul>
+<h3>⚠️ 已知未收口（16 条，且每一条都有明确根因与修法）</h3>
+<table><thead><tr><th>招式</th><th>剩余问题</th><th>根因</th><th>修法</th></tr></thead><tbody>
+<tr><td><code>a1</code></td><td>3 条（腕摆幅/扭转、可达 0.9cm、角速度 4068°/s）</td><td>中间帧已在弧上补了一个，但弧还不够密</td><td>再补 1~2 个中间帧</td></tr>
+<tr><td><code>a2</code> <code>a3</code></td><td>各 2 条（角加速 ~1.27e5、剑尖 ~53 m/s）</td><td>斩击相只有 5~7 帧，扫过 140°+ 的刀锋弧</td><td>把斩击相延长 1~2 帧，或把起止姿态的刀锋夹角收小</td></tr>
+<tr><td><code>takeoff</code></td><td>1 条（剑尖 161 m/s @f10）</td><td><strong>是"剑脱手"那一帧的状态切换</strong>：附着态与脱手态的目标点没有对齐到同一位置</td><td>让 <code>t_release</code> 的 <code>sword.pos</code> 与该帧的手骨位置严格对齐（已改过一次，仍需再对齐一次）</td></tr>
+<tr><td><code>pierce</code></td><td>2 条（角速度 6390°/s、角加速 3.8e5）</td><td>射姿转换时手的目标点跨度大</td><td>在 <code>pierce_wind → pierce</code> 之间补中间帧</td></tr>
+<tr><td><code>great_cleave</code></td><td>2 条（角速度 4471°/s @f76）</td><td>收招相从"落"回到"悬停"跨度过大</td><td>收招相延长或补帧</td></tr>
+</tbody></table>
+<p><strong>共性</strong>：剩下的全部是<strong>同一个根因</strong>——手部目标点在通道空间里按直线插值，而真实的挥砍手走的是弧线；当两点跨度大时，那条弦会从肩膀里穿过去（实测第 13 帧手距肩只剩 3cm，整条手臂塌成一团）。</p>
+<p><strong>统一的解法是在弧上补中间帧</strong>，而不是放宽阈值。工具已经把"哪一招哪一帧"指出来了。</p>
+<h3>❌ 未做</h3>
+<ul>
+<li><strong>Unity 侧未编译验证</strong>（本机没有 Unity）。C# 代码只经过 <code>check-cs.mjs</code> 的结构检查</li>
+<li><strong>真人测试为零</strong></li>
+<li>空中连段、受身、招架/弹反的玩家侧表达未做</li>
+<li>音效只定义了结构与顺序，没有实际音频资源</li>
+</ul>
+<hr>
+<h2>十三、参考来源</h2>
+<table><thead><tr><th>主题</th><th>主要来源</th></tr></thead><tbody>
+<tr><td>八拍处决结构 · 御剑双形态 · 剑阵可读性 · 穿身判定 · 巨剑尺度</td><td><code>_research/sword/03-御剑剑气与斩杀演出.md</code>（含 25 条可移植规律与独立"未检索到"章节）</td></tr>
+<tr><td>剑术人体动作学 · ROM 数值 · 动力链 · 51 条断言规则</td><td><code>_research/sword/01-剑术人体动作学.md</code>（1846 行 / 352 个来源）</td></tr>
+<tr><td>帧数据工业惯例 · Unity 实现手段</td><td><code>_research/sword/02-帧数据与Unity实现.md</code></td></tr>
+<tr><td>明暗适应与极端对比演出的生理依据</td><td>见 03 报告 §5.3</td></tr>
+<tr><td>攻击预警窗口与可归因失败</td><td>见 03 报告 §2.2</td></tr>
+</tbody></table>
+<blockquote>三份研究报告均<strong>明确标注了"未检索到"的项</strong>（逐帧分镜表、巨剑半径惯例、hitstop 最优毫秒数等）。本设计书里凡属经验值的帧数都已注明，<strong>没有把它们伪装成行业标准</strong>。</blockquote>
+<hr>
+<h2>十四、目录结构</h2>
+<pre>
+sword-combat-unity/
+├─ Data/                        ← 唯一真相源
+│   ├─ anatomy.json             22 骨骼 / 45 dof / 9 耦合 / 动力学阈值
+│   └─ moveset.json             25 姿态 / 8 招式 / 技能与演出参数
+├─ Tools/                       ← 离线工具链（不需要 Unity）
+│   ├─ lib/rig.mjs              骨架 · FK · 两骨 IK · 姿态解算
+│   ├─ audit.mjs                骨架自证 + 逐帧审计
+│   ├─ check-cs.mjs             C# 离线结构检查
+│   └─ gen-cs.mjs               Data/*.json → C# 数据表
+├─ Assets/Scripts/
+│   ├─ Generated/               生成的数据表（不要手改）
+│   ├─ Motion/                  运动层（C# 版 rig）
+│   ├─ Combat/                  战斗运行时
+│   ├─ Skills/                  四个技能与演出
+│   ├─ Camera/                  第三人称锁定相机
+│   ├─ Fx/                      刀光 · 光缝 · 震屏
+│   └─ Demo/                    零美术依赖的可跑演示
+└─ Assets/Editor/               场景搭建向导
+</pre></div></body></html>

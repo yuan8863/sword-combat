@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>工程说明</title><style>
+:root{--bg:#0b0f14;--panel:#121821;--line:#233040;--txt:#cad7e3;--dim:#7b8ea1;--hot:#ff7a4d;--ok:#5ee08a;--qi:#4fd8ff}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);font:15px/1.75 "Segoe UI","Microsoft YaHei",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{max-width:920px;margin:0 auto;padding:52px 26px 90px}
+h1{font-size:30px;margin:0 0 6px;color:#fff;letter-spacing:.01em}
+h2{font-size:21px;margin:44px 0 14px;color:#fff;padding-bottom:9px;border-bottom:1px solid var(--line)}
+h3{font-size:17px;margin:30px 0 10px;color:#e8f0f8}
+h4{font-size:15px;margin:22px 0 8px;color:var(--dim)}
+p{margin:11px 0}
+a{color:var(--qi);text-decoration:none} a:hover{text-decoration:underline}
+code{background:#1b2532;border:1px solid var(--line);border-radius:4px;padding:1px 6px;font:13px/1.5 Consolas,monospace;color:#bfeaff}
+pre{background:#0d131b;border:1px solid var(--line);border-radius:8px;padding:15px 17px;overflow-x:auto;font:13px/1.65 Consolas,monospace;color:#a9c3d6}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:14px}
+th,td{border:1px solid var(--line);padding:8px 11px;text-align:left;vertical-align:top}
+th{background:#182231;color:#fff;font-weight:600}
+tr:nth-child(even) td{background:#0f151d}
+hr{border:0;border-top:1px solid var(--line);margin:38px 0}
+ul{margin:11px 0;padding-left:24px} li{margin:5px 0}
+blockquote{margin:16px 0;padding:11px 18px;border-left:3px solid var(--hot);background:#141b24;color:#dbe6f0;border-radius:0 6px 6px 0}
+.hero{background:linear-gradient(135deg,#101823,#0b0f14);border:1px solid var(--line);border-radius:12px;padding:26px 28px;margin:26px 0 34px}
+.hero p{margin:8px 0;color:#dbe6f0}
+.cta{display:inline-block;background:var(--hot);color:#fff;font-weight:600;padding:12px 26px;border-radius:8px;margin:14px 12px 4px 0}
+.cta:hover{text-decoration:none;filter:brightness(1.12)}
+.cta.alt{background:#1d2a38;border:1px solid var(--line);color:#cfe0ee}
+nav{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 30px}
+nav a{background:#161f2a;border:1px solid var(--line);border-radius:7px;padding:8px 15px;font-size:14px;color:#cfe0ee}
+nav a:hover{background:#1e2a38;text-decoration:none}
+img{max-width:100%;border-radius:9px;border:1px solid var(--line);margin:14px 0;display:block}
+.small{color:var(--dim);font-size:13.5px}
+.tag{display:inline-block;background:#182231;border:1px solid var(--line);border-radius:20px;padding:3px 13px;font-size:13px;color:var(--dim);margin:0 7px 7px 0}
+</style></head>
+<body><div class="wrap"><nav><a href="index.html">← 返回入口</a><a href="体验-战斗系统.html">▶ 直接体验</a></nav><h1>接续说明 · 《御剑》剑修战斗系统</h1>
+<blockquote>给下一个窗口的一句话：<strong>数据是唯一真相源，审计是唯一的裁判。</strong></blockquote>
+<blockquote>改完 <code>Data/*.json</code> → <code>node Tools/gen-cs.mjs</code> → <code>node Tools/audit.mjs</code> → <code>node Tools/check-cs.mjs</code>。</blockquote>
+<blockquote>顺序不能反，<code>audit.mjs</code> 红了就不要往下走。</blockquote>
+<hr>
+<h2>一、30 秒上手</h2>
+<table><thead><tr><th>我想……</th><th>命令 / 位置</th></tr></thead><tbody>
+<tr><td>看动作到底对不对</td><td><code>node Tools/audit.mjs</code>（退出码 0 = 全绿）</td></tr>
+<tr><td>看骨架定义的自我证明</td><td><code>node Tools/audit.mjs --axes</code></td></tr>
+<tr><td>看每个姿态的手在哪、剑尖在哪</td><td><code>node Tools/audit.mjs --poses</code></td></tr>
+<tr><td>看每招每帧的 ROM / 耦合 / 动力学</td><td><code>node Tools/audit.mjs --moves</code></td></tr>
+<tr><td>校验工具自己是不是对的</td><td><code>node Tools/check-cs.mjs Tools/_selftest</code>（<strong>应该报 4 个 ERROR</strong>）</td></tr>
+<tr><td>改数据后重新生成 C#</td><td><code>node Tools/gen-cs.mjs</code></td></tr>
+<tr><td>读设计意图与帧数据</td><td><code>Docs/战斗系统设计书.md</code></td></tr>
+<tr><td>在 Unity 里跑</td><td>Unity Hub 打开本目录 → 菜单 <code>Tools → 御剑 · 生成演示场景</code> → Play</td></tr>
+</tbody></table>
+<hr>
+<h2>二、当前状态（已核对，可直接引用）</h2>
+<h3>2.1 已全绿</h3>
+<table><thead><tr><th>层</th><th>结果</th></tr></thead><tbody>
+<tr><td><strong>A 骨架轴向自证</strong></td><td>45 条 dof 的解剖学语义<strong>全部</strong>与几何实测一致（含轴向自转的离轴探针）</td></tr>
+<tr><td><strong>B 左右镜像自证</strong></td><td>8 对骨骼误差 <strong>0.000e+0</strong>，规则 <code>(x, −y, −z)</code> 成立</td></tr>
+<tr><td><strong>姿态审计</strong></td><td><strong>25 个姿态的 ROM + 耦合 + 手腕断言全部通过</strong>（<code>0 个姿势存在断言问题</code>）</td></tr>
+<tr><td>招式审计</td><td>8 个招式里 <code>qi_swords</code>、<code>execution</code> <strong>全套断言全绿</strong></td></tr>
+</tbody></table>
+<h3>2.2 未收口：16 条，<strong>同一个根因</strong></h3>
+<p><strong>手部目标点在通道空间里按直线插值，而真实的挥砍手走的是弧线。</strong></p>
+<p>两点跨度大时，那条弦会<strong>从肩膀里穿过去</strong> —— 实测 <code>a1</code> 第 13 帧手距肩只剩 <strong>3cm</strong>，整条手臂塌成一团，报表上表现为 <code>UpperArm.R</code> 的 <strong>10524°/s</strong>（＝175°/帧）。</p>
+<p>已经在 <code>a1</code> 上验证过修法：在弧上补一个中间帧（<code>a1_mid</code>），手距肩回到 <strong>17.6cm</strong>，峰值角速度降到 <strong>4068°/s</strong>。</p>
+<table><thead><tr><th>招式</th><th>剩余</th><th>修法（已验证的模式）</th></tr></thead><tbody>
+<tr><td><code>a1</code></td><td>3 条</td><td>再补 1~2 个中间帧</td></tr>
+<tr><td><code>a2</code> <code>a3</code></td><td>各 2 条</td><td>斩击相只有 5~7 帧却扫过 140°+ 的刀锋弧 → 延长 1~2 帧，或收小起止姿态的刀锋夹角</td></tr>
+<tr><td><code>takeoff</code></td><td>1 条（剑尖 161 m/s @f10）</td><td><strong>是"剑脱手"那一帧的状态切换</strong>：附着态与脱手态的目标点没对齐到同一位置</td></tr>
+<tr><td><code>pierce</code></td><td>2 条</td><td><code>pierce_wind → pierce</code> 之间补中间帧</td></tr>
+<tr><td><code>great_cleave</code></td><td>2 条</td><td>收招相从"落"回"悬停"跨度过大 → 补帧</td></tr>
+</tbody></table>
+<p><strong>不要用放宽阈值的方式收口。</strong> 阈值是从研究报告里标定出来的（角速度 3000°/s、剑尖 45 m/s 等），放宽阈值等于把尺子改短。</p>
+<h3>2.3 环境硬约束（决定了工具链为什么长这样）</h3>
+<table><thead><tr><th>探测项</th><th>结果</th><th>影响</th></tr></thead><tbody>
+<tr><td>Unity Editor / Hub</td><td><strong>未安装</strong></td><td>无法编译、无法运行、无法截图</td></tr>
+<tr><td>dotnet SDK</td><td><strong>未安装</strong></td><td>无法用 C# 编译器校验</td></tr>
+<tr><td>npm registry / dot.net</td><td><strong>不可达</strong></td><td>装不了解析器、装不了 SDK</td></tr>
+</tbody></table>
+<p>所以 <code>check-cs.mjs</code> 是自己写的：括号配平（字符串/注释感知）、using 白名单、UnityEditor 泄漏、BOM、自有类型成员交叉引用。<strong>它不能替代编译</strong>，只能证明结构与工程策略没问题。</p>
+<hr>
+<h2>三、工具链每条检查在防什么（都是踩过的坑）</h2>
+<table><thead><tr><th>#</th><th>坑</th><th>现在的守卫</th></tr></thead><tbody>
+<tr><td>1</td><td>轴向定义全是脑补的，实测发现<strong>躯干旋转方向整片写反</strong></td><td><code>--axes</code> 打印"+10° 末端往哪动"，并支持<strong>离轴探针</strong>（轴向自转不动末端）</td></tr>
+<tr><td>2</td><td>只对骨长方向、放任自转 → 肘变成万向节（<code>carryAngle = −115°</code>，极限 ±6°）</td><td>上臂世界旋转<strong>同时</strong>对齐骨长方向与铰链轴</td></tr>
+<tr><td>3</td><td>手的目标点在通道空间被"<code>.</code>"拆坏（骨骼名 <code>Hand.R</code> 带点号）→ 招式播放时 IK 整段丢失，双手恒定停在 T-pose 的 1.350m</td><td>通道分隔符改用 <code>\u0001</code></td></tr>
+<tr><td>4</td><td>用欧拉分量差算角速度 → ±90° 奇异点翻分支，报出 10800°/s 的假尖峰</td><td>改用四元数真实夹角</td></tr>
+<tr><td>5</td><td><code>blade.dir</code> 被同时套到两只手（左手被拧向剑锋）</td><td>只对持剑手生效，且<strong>只在剑真握在手里时</strong>生效</td></tr>
+<tr><td>6</td><td>剑脱手后 <code>blade.dir</code> 还在约束手腕</td><td>检查 <code>pose.sword.detached</code></td></tr>
+<tr><td>7</td><td>双手握剑约束被套到单手/脱手姿势上（假警报上百条）</td><td>招式级的 <code>grip: "one"</code> + 离散状态整段切换</td></tr>
+<tr><td>8</td><td>IK 基点取成占位值 <code>(0,0,0)</code> → 所有手落在离原点一个臂长处</td><td>基点 = 父骨<strong>尾端</strong></td></tr>
+<tr><td>9</td><td><code>r.a</code> 已是「度」却又乘了一次 <code>R2D</code> → 56.8° 变成 3254°</td><td>单位在函数边界写清楚</td></tr>
+<tr><td>10</td><td>极向量没投影到垂直于肩腕轴的平面 → 接近平行时退化成噪声，逐帧乱跳分支</td><td>投影 + 退化兜底</td></tr>
+<tr><td>11</td><td>"合计 ERROR" 少算了限速项（计数写在过滤之后）</td><td>计数顺序修正</td></tr>
+<tr><td>12</td><td>校验器把自家命名空间当成第三方包</td><td><code>PROJECT_NAMESPACE_ROOTS</code></td></tr>
+</tbody></table>
+<p><strong>其中 3、4、8、9、11 是"不会报错、只会安静地把一整条功能关掉"的类型</strong> —— 这一类最贵。</p>
+<hr>
+<h2>四、测量纪律（持续有效）</h2>
+<p>1. <strong>先自证工具，再相信结论</strong>。<code>node Tools/check-cs.mjs Tools/_selftest</code> 必须报 4 个 ERROR；报 0 个说明检查器自己坏了。</p>
+<p>2. <strong>改骨架定义（refUp / sign / expect）必须重跑 <code>--axes</code></strong>。轴向语义是整套数据的地基。</p>
+<p>3. <strong>不要用放宽阈值来让审计变绿</strong>。阈值有来源，红的是动作不是尺子。</p>
+<p>4. <strong>姿势数据里只写"解剖学 dof 名"</strong>，不写局部轴角度；手臂写"手在世界哪里"，不写肩角。</p>
+<p>5. <strong>新增姿态/招式必须同时进审计</strong>（<code>moveset.json</code> 就是审计的输入，加进去就会自动被审）。</p>
+<p>6. <strong>新增离散状态字段要同时进 <code>flattenPose</code> 的跳过名单</strong>（布尔/字符串不进插值通道，改走 <code>stateAt</code> 整段切换）。</p>
+<p>7. <strong>Unity 侧未编译验证</strong> —— 任何"Unity 里能跑"的说法都还没有证据。</p>
+<hr>
+<h2>五、下一步建议（按优先级）</h2>
+<p>1. <strong>收口剩余 16 条</strong>：按 §2.2 的表格补中间帧。这是纯数据工作，模式已经验证过。</p>
+<p>2. <strong>Unity 侧编译验证</strong>：装 Unity 2022.3 LTS → 打开 → 看 Console。C# 只过了结构检查。</p>
+<p>3. <strong>把 <code>audit.mjs</code> 接进 Unity</strong>：<code>MotionAssertions.cs</code> 已经移植了 ROM/耦合/手臂三项检查，可以在运行时逐帧跑并显示在 OnGUI 上 —— 那样"动作合法"就从离线变成了运行时守卫。</p>
+<p>4. <strong>视觉确认</strong>：本机无法渲染。要么装 Unity，要么把 <code>Tools/lib/rig.mjs</code> 的 FK 输出喂给一个极简 canvas 渲染器（<code>Data/moveset.json</code> 里已有每帧的骨骼世界坐标所需的一切）。</p>
+<hr>
+<h2>六、参考来源</h2>
+<table><thead><tr><th>主题</th><th>位置</th></tr></thead><tbody>
+<tr><td>剑术人体动作学（1846 行 / 352 来源 / 51 条断言规则）</td><td><code>D:\deep seek\_research\sword\01-剑术人体动作学.md</code></td></tr>
+<tr><td>帧数据工业惯例 + Unity 实现手段</td><td><code>D:\deep seek\_research\sword\02-帧数据与Unity实现.md</code></td></tr>
+<tr><td>御剑/剑气/穿身/竖劈/斩杀的演出与机制（含 25 条规律）</td><td><code>D:\deep seek\_research\sword\03-御剑剑气与斩杀演出.md</code></td></tr>
+</tbody></table>
+<p>三份报告均<strong>明确标注"未检索到"的项</strong>，本项目照此办理。</p>
+<hr>
+<h2>七、红线</h2>
+<p>1. <strong>不要手改 <code>Assets/Scripts/Generated/GeneratedData.cs</code></strong> —— 它是生成物，下次生成会覆盖。</p>
+<p>2. <strong>不要在 C# 里写第二套平行数值</strong>。帧数、阈值、角度一律从 <code>GeneratedData</code> 或数据文件来。</p>
+<p>3. <strong>不要引入第三方包</strong>（URP / Input System / Cinemachine / TMP 都不用）。演示场景是零美术依赖的。</p>
+<p>4. <strong>不要给文件加 UTF-8 BOM</strong>。</p>
+<p>5. <strong>不要声称"动作已完全符合人体动作学"</strong> —— 能主张的是"它有守卫，而且守卫现在红了 16 条"。</p></div></body></html>

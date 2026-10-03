@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>设计说明</title><style>
+:root{--bg:#0b0f14;--panel:#121821;--line:#233040;--txt:#cad7e3;--dim:#7b8ea1;--hot:#ff7a4d;--ok:#5ee08a;--qi:#4fd8ff}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);font:15px/1.75 "Segoe UI","Microsoft YaHei",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{max-width:920px;margin:0 auto;padding:52px 26px 90px}
+h1{font-size:30px;margin:0 0 6px;color:#fff;letter-spacing:.01em}
+h2{font-size:21px;margin:44px 0 14px;color:#fff;padding-bottom:9px;border-bottom:1px solid var(--line)}
+h3{font-size:17px;margin:30px 0 10px;color:#e8f0f8}
+h4{font-size:15px;margin:22px 0 8px;color:var(--dim)}
+p{margin:11px 0}
+a{color:var(--qi);text-decoration:none} a:hover{text-decoration:underline}
+code{background:#1b2532;border:1px solid var(--line);border-radius:4px;padding:1px 6px;font:13px/1.5 Consolas,monospace;color:#bfeaff}
+pre{background:#0d131b;border:1px solid var(--line);border-radius:8px;padding:15px 17px;overflow-x:auto;font:13px/1.65 Consolas,monospace;color:#a9c3d6}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:14px}
+th,td{border:1px solid var(--line);padding:8px 11px;text-align:left;vertical-align:top}
+th{background:#182231;color:#fff;font-weight:600}
+tr:nth-child(even) td{background:#0f151d}
+hr{border:0;border-top:1px solid var(--line);margin:38px 0}
+ul{margin:11px 0;padding-left:24px} li{margin:5px 0}
+blockquote{margin:16px 0;padding:11px 18px;border-left:3px solid var(--hot);background:#141b24;color:#dbe6f0;border-radius:0 6px 6px 0}
+.hero{background:linear-gradient(135deg,#101823,#0b0f14);border:1px solid var(--line);border-radius:12px;padding:26px 28px;margin:26px 0 34px}
+.hero p{margin:8px 0;color:#dbe6f0}
+.cta{display:inline-block;background:var(--hot);color:#fff;font-weight:600;padding:12px 26px;border-radius:8px;margin:14px 12px 4px 0}
+.cta:hover{text-decoration:none;filter:brightness(1.12)}
+.cta.alt{background:#1d2a38;border:1px solid var(--line);color:#cfe0ee}
+nav{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 30px}
+nav a{background:#161f2a;border:1px solid var(--line);border-radius:7px;padding:8px 15px;font-size:14px;color:#cfe0ee}
+nav a:hover{background:#1e2a38;text-decoration:none}
+img{max-width:100%;border-radius:9px;border:1px solid var(--line);margin:14px 0;display:block}
+.small{color:var(--dim);font-size:13.5px}
+.tag{display:inline-block;background:#182231;border:1px solid var(--line);border-radius:20px;padding:3px 13px;font-size:13px;color:var(--dim);margin:0 7px 7px 0}
+</style></head>
+<body><div class="wrap"><nav><a href="index.html">← 返回入口</a><a href="体验-战斗系统.html">▶ 直接体验</a></nav><h1>御剑 · 剑修战斗系统 —— 战斗设计说明</h1>
+<blockquote>一份<strong>数据驱动</strong>的第三人称剑术战斗系统。没有动画文件：姿态由解剖学自由度 + 手部 IK 定义，</blockquote>
+<blockquote>帧数据、解剖约束、平衡规则全部写在 <code>Data/*.json</code>，代码里不许有第二套数值。</blockquote>
+<blockquote></blockquote>
+<blockquote>本文按战斗策划的三块职责组织，每一条都给出<strong>为什么这么定</strong>和<strong>怎么验证</strong>。</blockquote>
+<hr>
+<h2>〇 · 一句话说清这个系统的赌注</h2>
+<p><strong>把"手感"从形容词变成可执行的断言。</strong></p>
+<p>"动作符合人体动作学""打击感好""流畅" —— 这三句话在评审里是没法反驳也没法通过的。</p>
+<p>所以这个工程做的第一件事，是把它们逐条翻译成能在命令行跑出红绿的检查：</p>
+<table><thead><tr><th>说法</th><th>断言</th><th>工具</th></tr></thead><tbody>
+<tr><td>符合人体动作学</td><td>逐帧逐骨比对 ROM；肩肱节律；膝-胫骨自转门；双手可达性</td><td><code>Tools/audit.mjs</code></td></tr>
+<tr><td>流畅</td><td>相位边界时间弯曲导数为 0；jerk 无孤立尖峰</td><td><code>Tools/smoothness.mjs</code></td></tr>
+<tr><td>有转身、不是只用手臂</td><td>骨盆偏航 ≥35°；髋肩分离<strong>符号必须变号</strong>且两侧 ≥25°</td><td><code>Tools/limbcheck.mjs</code></td></tr>
+<tr><td>平衡</td><td>剑意收支闭合；停顿分级；取消窗口结构；无严格劣势招</td><td><code>Tools/balance.mjs</code></td></tr>
+</tbody></table>
+<p><strong>这是整个作品最想表达的东西</strong>：策划的产出不该是"我觉得手感更好了"，</p>
+<p>而是一组<strong>改了就会红</strong>的规则。红了就知道坏在哪，绿了才有资格说"这版没问题"。</p>
+<hr>
+<h2>一 · 设计战斗机制（职责 1）</h2>
+<h3>1.1 架构：帧数据是契约，不是参数表</h3>
+<p>一招 = <code>frames</code> + <code>phases</code> + <code>keys</code> + <code>hit</code> + <code>cancel</code> + <code>skill</code>。</p>
+<p><code>phases</code>（起手/斩击/命中/收势）不只是提示文字，它<strong>驱动插值</strong>：</p>
+<p>每段的缓动被翻译成"端点速度"，再以相位边界为节点建一条 C1 连续的单调 Hermite。</p>
+<p><strong>为什么不是每段各自缓动</strong>：那样段与段之间速度不连续。实测 <code>a3</code> 的边界跳变达峰值的 69.7%，</p>
+<p>画面上是"预备完停住、然后弹出去"。改成共享端点斜率后，<strong>10/10 招的边界导数跳变 = 0.0000</strong>（解析可验证）。</p>
+<h3>1.2 剑意的模型是<strong>开关</strong>，不是蓝条</h3>
+<pre>
+来源：a1 25 + a2 25 + a3 50 = 一轮地面三连正好 100（满）
+消耗：takeoffCost = 0
+</pre>
+<p><strong><code>takeoffCost = 0</code> 是有意的，不是漏填。</strong> 攒满才能起飞；起飞后不清零，</p>
+<p>御剑态的招式由"是否在御剑态"把关，而不是再扣一次资源。</p>
+<p><strong>为什么不做成蓝条</strong>：蓝条会让玩家<strong>不敢用</strong>。资源被扣空意味着"内容被藏起来"，</p>
+<p>玩家会退回最省的打法。做成开关之后，玩家的努力换来的是<strong>一段时间的战斗形态变化</strong></p>
+<p>（地面剑术 → 御剑飞行 + 召唤剑气 + 巨剑 + 处决），这是内容，不是消耗品。</p>
+<p><strong>校验</strong>：一轮三连的产出<strong>必须正好等于上限</strong>。多了是溢出浪费（玩家觉得白打），</p>
+<p>少了就永远飞不起来（玩家觉得系统坏了）。</p>
+<h3>1.3 取消窗口：结构规则，不是手感数值</h3>
+<p>统一规则：<strong>必须打完自己的判定帧才能取消</strong>（<code>cancel.from = hit.active[1] + 1</code>）。</p>
+<table><thead><tr><th>招式</th><th>判定帧</th><th>可取消</th><th>占比</th></tr></thead><tbody>
+<tr><td>a1 斜斩</td><td>[18,20]</td><td>21</td><td>81%</td></tr>
+<tr><td>a2 反撩</td><td>[9,11]</td><td>12</td><td>67%</td></tr>
+<tr><td>a3 上撩</td><td>[13,16]</td><td>17</td><td>65%</td></tr>
+<tr><td>pierce 贯穿</td><td>[4,18]</td><td>19</td><td>90%</td></tr>
+<tr><td>great_cleave</td><td>[60,64]</td><td>65</td><td>68%</td></tr>
+</tbody></table>
+<p><strong>为什么不用"越重取消越晚"</strong>：我第一版写了这条规则，它把 <code>a1</code> 判红了 —— 而 <code>a1</code> 是连段起手，</p>
+<p><strong>它本来就应该最好取消</strong>，否则连段接不起来。取消窗口的形态由"连段位置"决定，不由伤害决定。</p>
+<p>（这条自我纠错写在这里，因为<strong>规则本身也是设计产物，也会错</strong>。）</p>
+<h3>1.4 空挥惩罚</h3>
+<p><code>cancel.missExtraRecoveryFrames = 2</code>（8 个招式）。</p>
+<p><strong>来源</strong>：卡普空官方 SF6 帧数据 —— *"2 frames of recovery added when the attack misses"*。</p>
+<p>没有它，玩家会无脑空挥去刷取消窗口，把"出招要付代价"这件事抹掉。</p>
+<h3>1.5 命中停顿按重量分级</h3>
+<table><thead><tr><th>分级</th><th>区间</th><th>招式</th></tr></thead><tbody>
+<tr><td>轻</td><td>2~4 帧</td><td>a1 (4)、a2 (4)</td></tr>
+<tr><td>重</td><td>6~10 帧</td><td>a3 (6)、pierce (6)</td></tr>
+<tr><td>大招</td><td>12~18 帧</td><td>great_cleave (14)、execution (14)</td></tr>
+</tbody></table>
+<p><strong>所有攻击同一个停顿值 = 把战斗层次拍平</strong> —— 轻击和巨剑劈下来手感一样重，</p>
+<p>玩家就读不出自己拿了什么牌。校验器断言<strong>停顿随伤害单调不降</strong>。</p>
+<p><strong>例外（写进规则，不是漏掉）</strong>：伤害由<strong>飞出去的剑气自己结算</strong>的招式（<code>ride_a1/a2</code>、<code>qi_swords</code>）</p>
+<p><strong>不该有停顿</strong> —— 玩家正在御剑飞行，被自己的弹体打断动作是错的。</p>
+<hr>
+<h2>二 · 扩展战斗玩法（职责 2）</h2>
+<h3>2.1 战斗循环</h3>
+<pre>
+地面三连（攒剑意）→ 满 100 → 空格御剑起飞（形态切换，不可打断）
+                                    ↓
+              御剑态：F 贯穿冲刺 / 左键 剑气 / E 六剑齐发 / Q 巨剑竖劈 / X 斩杀
+</pre>
+<p><strong>形态切换是这套玩法的支点</strong>：地面是"接近、起手、攒"，御剑是"机动、爆发、处决"。</p>
+<p>玩家在一场战斗里会经历两次形态转换，每次转换都改变<strong>可用的动作集和移动方式</strong>。</p>
+<h3>2.2 十招各有明确职责，没有两个是同质的</h3>
+<table><thead><tr><th>招式</th><th>帧</th><th>伤害</th><th>职责</th></tr></thead><tbody>
+<tr><td>a1 斜斩·右袈裟</td><td>26</td><td>10</td><td>起手段。可取消最早，负责开启连段</td></tr>
+<tr><td>a2 反撩·左逆袈裟</td><td>18</td><td>12</td><td>节奏段。<strong>最短的一招</strong>，用来调连段节拍</td></tr>
+<tr><td>a3 上撩·起势</td><td>26</td><td>16</td><td>收尾段 + 起飞引信。伤害最高、顿最重</td></tr>
+<tr><td>takeoff 御剑·踏剑起</td><td>72</td><td>0</td><td>形态切换，不可打断 —— 它是<strong>仪式</strong>，不是攻击</td></tr>
+<tr><td>pierce 御剑穿身</td><td>21</td><td>18</td><td>机动位移 + 贯穿。判定窗 [4,18] 覆盖整个冲刺</td></tr>
+<tr><td>ride_a1 御剑·剑气</td><td>20</td><td>14</td><td>单发远程，验证飞行手感</td></tr>
+<tr><td>ride_a2 御剑·连环剑气</td><td>26</td><td>33</td><td>三连发，节奏输出</td></tr>
+<tr><td>qi_swords 凝剑·六剑齐发</td><td>60</td><td>42</td><td>扇形控场</td></tr>
+<tr><td>great_cleave 巨剑竖劈</td><td>96</td><td>45</td><td>全场最重一击。36 帧预告 + 巨剑下落轨迹本身是预警</td></tr>
+<tr><td>execution 斩杀·撕裂黑暗</td><td>120</td><td>999</td><td>处决技，八拍演出</td></tr>
+</tbody></table>
+<h3>2.3 一条具体的设计判断：<strong>依序发射优于齐射</strong></h3>
+<p><code>ride_a2</code> 的三道剑气间隔 3 帧（0.05s）<strong>依序</strong>发出，不是同时。</p>
+<p><strong>为什么</strong>：齐射是一次性事件，玩家只看到一个瞬间；依序发射给了一个<strong>节拍器</strong> ——</p>
+<p>玩家能预判、能配合位移、能读节奏。可读性高一个量级，代价只是 6 帧。</p>
+<p>同理 <code>qi_swords</code> 的 6 把剑是<strong>扇形</strong>排列且第一把先出现：6 是一个被验证过的<strong>可数</strong>数量，</p>
+<p>第一把先出会带着玩家的视线走。</p>
+<h3>2.4 预警的设计判断：不做区域预警</h3>
+<p><code>great_cleave</code> 用 <code>lockMode: lockCurrentPosition</code>（锁定当前位置下落），而不是区域预警圈。</p>
+<p><strong>为什么</strong>：区域预警会把"躲"变成"看图标"。而<strong>下落轨迹本身就是预告</strong> ——</p>
+<p>玩家抬头看到巨剑下来了，这个信息是<strong>空间性</strong>的，不是 UI 性的。打空会挫败，</p>
+<p>但锁定落点让"打空"变成玩家的判断失误而非系统的欺骗。</p>
+<hr>
+<h2>三 · 提升战斗表现（职责 3）</h2>
+<h3>3.1 把"粗糙"拆成两个可修的原因</h3>
+<p>程序化动作看起来廉价，只有两个签名特征：</p>
+<table><thead><tr><th>特征</th><th>原因</th><th>修法</th><th>结果</th></tr></thead><tbody>
+<tr><td>全身像一块刚体同时移动</td><td>所有通道在同一个 <code>t</code> 求值</td><td><strong>重叠动作</strong>：按动力链深度滞后</td><td>φ = 0.010~0.065（段长比例）</td></tr>
+<tr><td>末端没有甩出去的余韵</td><td>单调 Hermite <strong>在数学上禁止过冲</strong></td><td>—— 尚未做（见 §5）</td></tr>
+</tbody></table>
+<p><strong>重叠动作的纪律</strong>：滞后必须按<strong>段长的百分比</strong>，不能按绝对帧数。</p>
+<p>研究报告里"每跳滞后 1~2 帧"是 24fps 慢速动画的经验；6 跳链按绝对帧数累计 <strong>375~500ms</strong>，</p>
+<p>而一次挥砍的打击段只有 50~133ms —— <strong>剑尖永远到不了打击姿态，动作直接坏掉</strong>。</p>
+<p>按比例之后，5 帧的打击段自动只滞后零点几帧，40 帧的预备段自动滞后几帧。</p>
+<p><strong>IK 目标必须一起滞后</strong>：手的目标点也是通道。只滞后上半身却把手钉在原来的时刻，</p>
+<p>IK 会把滞后拉回去，等于白做。</p>
+<h3>3.2 动力链：躯干不是"转身"，是<strong>拧紧后反超</strong></h3>
+<p>实测 <code>a1</code>：</p>
+<table><thead><tr><th>帧</th><th>髋线</th><th>肩线</th><th>分离</th></tr></thead><tbody>
+<tr><td>0 站架</td><td>76.0°</td><td>69.3°</td><td>−6.7°</td></tr>
+<tr><td>7 起手顶点</td><td><strong>48.0°</strong></td><td>80.8°</td><td><strong>+32.8°</strong></td></tr>
+<tr><td>18 命中</td><td><strong>114.0°</strong></td><td>82.4°</td><td><strong>−31.6°</strong></td></tr>
+</tbody></table>
+<p>骨盆转了 <strong>66°</strong>，而肩线只走了 2° —— <strong>躯干在底下拧紧、肩线被留在后面，命中时反超 31.6°</strong>。</p>
+<p><strong>这条被解剖约束强制</strong>：<code>trunk_rotation_budget</code> 要求骨盆+三段脊柱的旋转<strong>总和</strong> ∈ ±75°。</p>
+<p>所以正确结构必然是<strong>反向</strong>的：骨盆 +42、三段脊柱合计 −29 → 净旋转只 13°（解剖安全），</p>
+<p>但肩线相对髋线分离 29°（力量感）。<strong>解剖约束和"有力"在这里是同一件事。</strong></p>
+<p><strong>判据要跟动作类型走</strong>：横斩看水平面拧紧，竖劈/起飞/突刺看矢状面屈伸</p>
+<p>（<code>pelvisTilt + 三段 flexion</code>）。我第一版只用水平判据，于是 <code>great_cleave</code> 报了假红。</p>
+<table><thead><tr><th>招式</th><th>类型</th><th>幅度</th></tr></thead><tbody>
+<tr><td>a1 / a2 / a3</td><td>水平拧紧</td><td>66° / 28° / 66°</td></tr>
+<tr><td>takeoff</td><td>矢状屈伸</td><td>92°（深蹲→伸展）</td></tr>
+<tr><td>great_cleave</td><td>矢状屈伸</td><td>124°（指天 −34° → 下劈 +90°）</td></tr>
+<tr><td>execution</td><td>矢状屈伸</td><td>87°（收紧 +48° → 撕裂 −39°）</td></tr>
+</tbody></table>
+<h3>3.3 一帧数据的说服力：上撩的手够不到</h3>
+<p>给 <code>a3</code> 补躯干时，后仰从 −28° 加到 −46°，肩关节往后移约 14cm，</p>
+<p>而手的目标点是<strong>角色根空间的绝对坐标</strong> —— 审计报「目标超出臂长 8.6cm」。</p>
+<p><strong>这说明躯干和手部 IK 是机械耦合的</strong>：不能"先改躯干再看结果"。</p>
+<p>最终建成 <code>Tools/fit-ik.mjs</code>：用<strong>审计量出来的超限量</strong>驱动，沿"肩→手"方向把距离缩回来，</p>
+<p>方向不变 → 手臂指向不变。</p>
+<p>（它第一版用闭式解 <code>reach = dist / reachRatio</code>，被实测证伪：自己算 0.1cm、审计报 8.6cm。</p>
+<p><strong>两套口径对不上时以审计器为准</strong> —— 判红绿的是它。）</p>
+<h3>3.4 特效层：颜色和触发区间都在数据里</h3>
+<p><code>Data/effects.json</code> 是唯一真相，渲染器和 Unity 侧都读它，代码里不硬编码色值：</p>
+<pre>
+core #ffffff   hot #c8f6ff   qi #4fd8ff   deep #1b7fc4   jade #5cf0be   void #03101a
+</pre>
+<p><strong>配色决定</strong>：参考片是火焰红橙，这里换成剑气的蓝白青绿。</p>
+<p><strong>抄它的结构与节拍，不抄它的色。</strong></p>
+<p>四个特效层 + 一条绘制顺序纪律：</p>
+<pre>
+漩涡 → 径向爆发 → 全黑 → 撕裂光缝 → 闪白
+</pre>
+<p><strong>顺序不能挪</strong>：黑场必须盖住角色，而光缝必须盖住黑场 ——</p>
+<p>这样"由一点变一竖把黑暗撕开"才成立；顺序反了就变成"光缝被黑暗盖住"，什么都看不见。</p>
+<p><strong>剑气月牙的出生帧不手排</strong>：取<strong>剑尖速度的局部极大值</strong>（&gt;7 m/s、间隔 ≥6 帧）。</p>
+<p>剑尖什么时候最快，剑气就什么时候离刀 —— 这是同一件事。</p>
+<p><strong>辉光（bloom）已进 Unity</strong>：<code>Assets/Shaders/QiBloom.shader</code> + <code>QiBloom.cs</code>，</p>
+<p>Built-in RP 的 <code>OnRenderImage</code> 里三次 Blit（亮度阈值 → 可分离高斯 → 加色合成）。</p>
+<p>零第三方依赖。<strong>失败必须降级为直通而不是抛异常</strong> —— 这个工程里 <code>Shader.Find</code> 返回过 null，</p>
+<p><code>new Material(null)</code> 抛异常把整条 <code>BuildCamera</code> 打断，表现是演示"动不了"。</p>
+<hr>
+<h2>四 · 平衡是可断言的（职责 1 的"维护"）</h2>
+<p><code>Tools/balance.mjs</code> 查 7 条，每条对应一个真实会毁掉体验的失败模式：</p>
+<p>1. <strong>剑意收支闭合</strong> —— 一轮三连产出 == 上限</p>
+<p>2. <strong>命中停顿分级</strong> —— 每个"自己命中"的招式都落在重量区间内</p>
+<p>3. <strong>停顿随伤害单调不降</strong> —— 不能出现更轻的招顿得更久</p>
+<p>4. <strong>取消窗口结构</strong> —— 不早于判定帧结束</p>
+<p>5. <strong>无严格劣势招</strong> —— 没有一招在伤害效益与削韧效益上被同时压制</p>
+<p>6. <strong>削韧/伤害比值 ∈ [1.1, 1.5]</strong> —— 保证削韧不退化成"伤害的别名"</p>
+<p>7. <strong>可调数值只出现在 <code>Data/</code></strong> —— 代码里不许有第二套</p>
+<h3>这一轮校验器找出的东西（含<strong>我自己写错的规则</strong>）</h3>
+<table><thead><tr><th>判定</th><th>条目</th><th>结论</th></tr></thead><tbody>
+<tr><td>真</td><td><code>pierce</code> / <code>execution</code> 缺停顿</td><td>已修：6 / 14</td></tr>
+<tr><td>真</td><td><code>great_cleave</code> 顿 10</td><td>已修：14（全场最重一击必须压过所有重击）</td></tr>
+<tr><td>真</td><td>取消窗口不一致</td><td>已修：统一为"判定帧结束后"</td></tr>
+<tr><td>真</td><td><code>takeoffCost</code> 写在 C# 里</td><td><strong>未修</strong>，违反纪律，见 §5</td></tr>
+<tr><td><strong>假</strong></td><td><code>ride_a1/a2</code>、<code>qi_swords</code> 缺停顿</td><td><strong>规则错</strong>：伤害由飞出的剑气结算，不该停顿</td></tr>
+<tr><td><strong>假</strong></td><td><code>qi_swords</code> 被 <code>execution</code> 压制</td><td><strong>规则错</strong>：处决技不参与可重复招式的效益比较</td></tr>
+<tr><td><strong>假</strong></td><td>取消窗口随伤害单调</td><td><strong>规则错</strong>：应由连段位置决定</td></tr>
+</tbody></table>
+<p><strong>把这三条写进文档，是因为它们比"全绿"更有信息量</strong>：</p>
+<p>校验器的价值不是通过，而是<strong>逼人把"真问题"和"我拍脑袋定的规则"分开</strong>。</p>
+<hr>
+<h2>五 · 诚实的边界（还没做的）</h2>
+<p>1. <strong>末端过冲（follow-through）没做。</strong> 这是"机械感"的根因：</p>
+<p>   单调 Hermite 在数学上禁止过冲，而甩出去的余韵本质就是受控过冲。</p>
+<p>   研究报告把它排第一（提升 5 星 / 成本 2 星），做法是给腕/肘/剑尖叠一层二阶阻尼弹簧</p>
+<p>   （ζ=0.45~0.60 → 过冲 9.5~20.5%，剑尖只用 3~7% 否则会甩飞）。</p>
+<p>2. <strong>能量羽翼、地面法阵、撕裂屏幕特效只在预览渲染里</strong>，Unity 侧还没实现（辉光已做）。</p>
+<p>3. <strong><code>takeoffCost</code> 等可调数值仍在 C# 里</strong>（<code>SwordQi.cs</code>），应移到 <code>Data/balance.json</code> 由生成器注入。</p>
+<p>4. <strong>手部管线</strong>：腕角由 <code>blade.dir</code> 反推，而它要求的轴向旋转超出腕的 ±25°；</p>
+<p>   解剖上该由<strong>前臂旋前</strong>（<code>LowerArm.pronation [-85,90]</code>，数据里早有、解算器从没用过）承担。</p>
+<p>5. <strong>IK 肘部分支不稳定</strong>：审计里约 97 条错误来自解算器在多个极小值之间跳</p>
+<p>   （77~130°/帧，人体不可能），不是真实动作问题，但会污染角速度读数。</p>
+<p>6. <strong>JS 与 C# 无数值一致性测试</strong>：审计跑的是 <code>Tools/lib/rig.mjs</code>（<code>PoseSolver.cs</code> 的镜像），</p>
+<p>   本轮已经抓到过一次"审计测新曲线、运行时跑旧曲线"的静默分歧。</p>
+<p>   两套实现的等价性需要一个自检用例来保证。</p>
+<hr>
+<h2>六 · 怎么验证（可复现）</h2>
+<pre>
+node Tools/audit.mjs --moves      # 人体动作学：ROM / 耦合 / 动力学
+node Tools/smoothness.mjs         # 流畅度：相位边界导数、jerk
+node Tools/limbcheck.mjs          # 肢体链条：骨盆偏航、髋肩分离、屈伸
+node Tools/balance.mjs            # 平衡：7 条不变量
+node Tools/fit-ik.mjs             # 手部可达性配平（--apply 写入）
+node Tools/render.mjs             # 渲染成可交互的预览页（Docs/预览-战斗系统.html）
+
+# 真编译（必须关闭编辑器，否则会"假绿"）
+powershell -File Tools/unity-compile.ps1
+</pre>
+<p><code>Tools/lib/sampler.mjs</code> 是审计器与渲染器<strong>共用</strong>的插值实现 ——</p>
+<p>两份拷贝一旦漂移，就会出现"审计说没问题、画面上却在抖"这种最难查的情况。</p>
+<p><strong>任何插值规则的改动都必须同时改这里和 <code>Assets/Scripts/Motion/PoseMixer.cs</code>。</strong></p></div></body></html>

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>御剑 · 剑修战斗系统</title><style>
+:root{--bg:#080b10;--line:#1f2b39;--txt:#cbd8e4;--dim:#788ba0;--hot:#ff7a4d;--qi:#4fd8ff}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(ellipse at 50% 0%,#13202e,#080b10 60%);color:var(--txt);
+ font:16px/1.7 "Segoe UI","Microsoft YaHei",system-ui,sans-serif;min-height:100vh;-webkit-font-smoothing:antialiased}
+.wrap{max-width:880px;margin:0 auto;padding:80px 26px 110px}
+h1{font-size:38px;margin:0 0 8px;color:#fff;letter-spacing:.01em}
+.sub{color:var(--dim);font-size:15px;margin:0 0 46px}
+.lead{font-size:19px;color:#e6eef6;line-height:1.75;border-left:3px solid var(--hot);padding-left:20px;margin:0 0 46px}
+.card{display:block;background:#101823;border:1px solid var(--line);border-radius:14px;padding:26px 28px;
+ margin:0 0 18px;text-decoration:none;color:inherit;transition:.16s}
+.card:hover{background:#16212e;border-color:#33475c;transform:translateY(-2px)}
+.card h2{margin:0 0 8px;font-size:22px;color:#fff;display:flex;align-items:center;gap:12px}
+.card p{margin:0;color:var(--dim);font-size:14.5px}
+.badge{font-size:12px;padding:3px 11px;border-radius:20px;background:#1b2836;color:var(--qi);border:1px solid var(--line);font-weight:600}
+.badge.soon{background:#2a1f18;color:#ffab7a}
+.meta{margin-top:14px;font-size:13px;color:#5d6f83}
+nav{display:flex;gap:10px;flex-wrap:wrap;margin:44px 0 0;padding-top:28px;border-top:1px solid var(--line)}
+nav a{background:#141d28;border:1px solid var(--line);border-radius:8px;padding:9px 16px;font-size:14px;color:#cfe0ee;text-decoration:none}
+nav a:hover{background:#1c2734}
+.tag{display:inline-block;background:#141d28;border:1px solid var(--line);border-radius:20px;padding:5px 15px;font-size:13.5px;color:var(--dim);margin:0 8px 8px 0}
+</style></head>
+<body><div class="wrap">
+  <h1>御剑 · 剑修战斗系统</h1>
+  <p class="sub">数据驱动的第三人称剑术战斗系统 · 战斗策划作品</p>
+  <p class="lead">把「手感」从形容词变成可执行的断言。<br>
+  「符合人体动作学」「打击感好」「流畅」在评审里既没法反驳也没法通过 ——
+  所以这套系统把它们逐条翻译成能跑出红绿的检查。</p>
+  <a class="card" href="webgl/index.html">
+    <h2>🎮 Unity 真机版 3D <span class="badge">点击即玩</span></h2>
+    <p>真正的 Unity 构建，跑在你的浏览器里 —— 不用装 Unity、不用装任何东西。鼠标转视角，左键三连，空格御剑起飞。</p>
+    <div class="meta">加载约 21 MB，首次打开需要等十几秒（之后会缓存）</div>
+  </a>
+  <a class="card" href="预览/index.html">
+  <h2>📐 动作回放预览 <span class="badge">点击即玩</span></h2>
+  <p>把十招逐帧解算出来的骨骼回放，可切招式、换机位、逐帧看、显示骨盆偏航／髋肩分离／屈伸幅度与剑尖速度包络。</p>
+  <div class="meta">自包含 2.4 MB，秒开</div>
+</a>
+  <div style="margin:34px 0 0">
+    <span class="tag">22 根骨骼</span><span class="tag">45 个解剖自由度</span><span class="tag">9 条耦合约束</span>
+    <span class="tag">31 个姿态</span><span class="tag">10 招完整连招</span><span class="tag">4 个校验器</span>
+  </div>
+  <nav><a href="设计说明.html">设计说明</a><a href="设计书.html">设计书</a><a href="工程说明.html">工程说明</a><a href="校验报告.txt">校验报告.txt</a></nav>
+</div></body></html>
